@@ -54,8 +54,18 @@ struct Options
     bool flipAltWinOnAppleKeyboards = false;
     bool LControlLWinBlocksAlphaMapping = false;
     bool processOnlyFirstKeyboard = false;
+    bool copilotKeyWorkaround = true;    
 } options;
 static const struct Options defaultOptions;
+
+struct CopilotKeyTracker
+{
+    unsigned int step = 0; // 0:init, 1:LSHT pressed, 2:LWIN pressed
+    bool wasLShiftPressedBefore = false;
+    bool wasLWinPressedBefore = false;
+
+};
+static const struct CopilotKeyTracker defaultCopilotKeyTracker;
 
 struct ModifierCombo
 {
@@ -115,6 +125,9 @@ struct GlobalState
     bool secretSequencePlayback = false;
     int recordingMacro = -1; //-1: not recording. 1..MAX_SIMPLE_MACROS : this is currently recording. 0=currently recording the 'hard' ESC+J macro
     vector<VKeyEvent> recordedMacros[MAX_NUM_MACROS];  // [0] stores the 'hard' macro
+
+    CopilotKeyTracker copilotTracker;
+
 } globalState;
 static const struct GlobalState defaultGlobalState;
 
@@ -455,6 +468,9 @@ int main()
         if (!processMessyKeys())
             continue;
 
+        //Handle Shift+Win+F23
+        processCopilotKey();
+
         //Tapdance
         detectTapping();
         //slow tap breaks tapping
@@ -604,6 +620,69 @@ bool processOnOffKey()
 
     return false;
 }
+
+//Handle Shift+Win+F23
+void processCopilotKey()
+{
+    if (options.copilotKeyWorkaround)
+    {
+        switch (globalState.copilotTracker.step)
+        {
+        case 0: // first LWIN
+            if (loopState.vcode == SC_LWIN && loopState.isDownstroke)
+            {
+                globalState.copilotTracker.step++;
+                if (globalState.keysDownSent[loopState.vcode])
+                {
+                    globalState.copilotTracker.wasLWinPressedBefore = true;
+                }
+            }
+            else
+            {
+                // reset
+                globalState.copilotTracker = defaultCopilotKeyTracker;
+            }
+            break;
+        case 1: // then LSHF is expected
+            if (loopState.vcode == SC_LSHIFT && loopState.isDownstroke)
+            {
+                globalState.copilotTracker.step++;
+                if (globalState.keysDownSent[loopState.vcode])
+                {
+                    globalState.copilotTracker.wasLShiftPressedBefore = true;
+                }
+            }
+            if (loopState.vcode == SC_LWIN && loopState.isDownstroke)
+            {
+                // second LWIN
+                if (globalState.keysDownSent[loopState.vcode])
+                {
+                    globalState.copilotTracker.wasLWinPressedBefore = true;
+                }
+            }
+            break;
+        case 2: // F23 
+            if (loopState.vcode == SC_F23 && loopState.isDownstroke)
+            {
+                // undo LSFT and LWIN unless it was pressed before
+                if (!globalState.copilotTracker.wasLShiftPressedBefore)
+                {
+                    IFDEBUG cout << "(undo LSHF)";
+                    sendVKeyEvent({ SC_LSHIFT, false });
+                }
+                if (!globalState.copilotTracker.wasLWinPressedBefore)
+                {
+                    IFDEBUG cout << "(undo LWIN)";
+                    sendVKeyEvent({ SC_LWIN, false });
+                }
+            }
+            // reset
+            globalState.copilotTracker = defaultCopilotKeyTracker;
+            break;
+        }
+    }
+}
+
 
 //handle PRINT, SCRLOCK, PAUSE, NUMLOCK, E1, Exit and Break signals
 //return false = drop the key
@@ -1264,6 +1343,11 @@ bool parseIniOptions(std::vector<std::string> assembledIni)
         {
             options.processOnlyFirstKeyboard = true;
         }
+        else if (token == "copilotKeyWorkaround")
+        {
+            options.copilotKeyWorkaround = true;
+            cout << endl << "enabled copilotKeyWorkaround";
+        }
         else if (token == "includedeviceid")
         {
             globalState.includeDeviceId = stringGetRestBehindFirstToken(line);
@@ -1654,6 +1738,7 @@ void printOptions()
         << endl << (options.flipAltWinOnAppleKeyboards ? "ON :" : "off: --") << " Alt <-> Win for Apple keyboards"
         << endl << (options.LControlLWinBlocksAlphaMapping ? "ON :" : "off: --") << " Left Control and Win block alpha key mapping ('Ctrl + C is never changed')"
         << endl << (options.processOnlyFirstKeyboard ? "ON :" : "off: --") << " Process only the keyboard that sent the first key"
+        << endl << (options.copilotKeyWorkaround ? "ON :" : "off: --") << " Remove LSFT and LWIN modifiers from Copilot key"
         << endl
         ;
 }
