@@ -1,8 +1,45 @@
-### February 2024: new release v97: new global to deactivate the standard Windows shortcut "LWIN tapped -> open Start menu"
-### July 2023: v95 new option to include/exclude specific keyboards, see <a href="https://github.com/cajhin/capsicain/wiki/Keyword%3A-OPTION#option-includedeviceid-searchstring">IncludeDeviceId</a>
-### December 2022: Windows 11 update 22H2 breaks *minimize to tray*, see Wiki for a <a href="https://github.com/cajhin/capsicain/wiki/X-doesn't-work#windows-11-version-22h2-cannot-minimize-to-tray">fix</a>
+
+### This is a fork of capsicain, adding the option copilotKeyWorkaround (Jan-2025)
+
+*copilotKeyWorkaround* lets you rewire the "Copilot" key on Windows for other use cases, e.g. as Ctrl key.
+The Copilot key (at least on my Dell laptop) does not send a single scan code, but instead sends LeftWin down, LeftShift down, F23 down 
+(and when released the up events in reverse order). You can rewire the F23 key, even with tools like SharpKeys or PowerToys,
+but you cannot get rid of the Win+Shift modifiers, which makes that useless for many use cases.
+
+When *copilotKeyWorkaround* is activated, capsicain will filter out the Win and Shift key events around the F23,
+so you are basically left with a pure F23 key event, which you can use with REWIRE and COMBO as usual.
+
+
+Here is an example config, which maps the Copilot key to RCtrl:
+
+```
+[CONFIG_1]
+OPTION configName RewireCopilotToCtrl
+
+# Make Copilot key a regular F23 key
+OPTION copilotKeyWorkaround
+
+# rewire F23 to right CTRL      
+REWIRE     F23     RCTRL
+```
+
+Have fun!
+
+
+PS: This code assumes that the key events come in the order LeftWin down, LeftShift down, F23 down (and in reverse for up events).
+This works nicely with my Dell Laptop, but as I do not have any other hardware to test this with, I don't know what happens on other setups.
+If you happen to test this on your machine, let me know if it works for you. If not, please open an issue and document the keyboards events
+coming in when pressing the Copilot button (Use the Esc+D debug feature of capsicain). Thx.
+
+---
+This is the original readme:
 
 # capsicain
+
+- February 2024: new release v97: new global to deactivate the standard Windows shortcut "LWIN tapped -> open Start menu"
+- July 2023: v95 new option to include/exclude specific keyboards, see <a href="https://github.com/cajhin/capsicain/wiki/Keyword%3A-OPTION#option-includedeviceid-searchstring">IncludeDeviceId</a>
+- December 2022: Windows 11 update 22H2 breaks *minimize to tray*, see Wiki for a <a href="https://github.com/cajhin/capsicain/wiki/X-doesn't-work#windows-11-version-22h2-cannot-minimize-to-tray">fix</a>
+
 
 Keyboard configuration tool that re-maps keys and modifier-key-combos at a very low level.
 
