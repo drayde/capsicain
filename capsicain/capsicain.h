@@ -33,6 +33,7 @@ bool processMessyKeys();
 void processRewireScancodeToVirtualcode();
 void processCombos();
 void processMapAlphaKeys();
+bool processCopilotKey();
 
 void detectTapping();
 void playKeyEventSequence(std::vector<VKeyEvent> keyEventSequence);
